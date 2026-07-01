@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statpadder - Performance Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1a237e;
+            --secondary-color: #0d47a1;
+            --accent-color: #1976d2;
+            --bg-color: #f0f4f8;
+        }
+        body { background: var(--bg-color); font-family: 'Segoe UI', Tahoma, sans-serif; padding-bottom: 40px; }
+        
+        /* --- Welcome Animation --- */
+        #welcome-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white; display: flex; justify-content: center; align-items: center;
+            z-index: 9999; animation: fadeOutOverlay 0.5s ease-in-out 2.5s forwards;
+        }
+        .welcome-text {
+            font-size: 4rem; font-weight: 800; text-shadow: 2px 4px 10px rgba(0,0,0,0.3);
+            animation: popIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes fadeOutOverlay { to { opacity: 0; visibility: hidden; } }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* --- Header & Navigation --- */
+        .dashboard-header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: white; padding: 25px 0; margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border-radius: 0 0 20px 20px; }
+        .back-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 20px; transition: 0.3s; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;}
+        .back-btn:hover { background: rgba(255,255,255,0.4); color: white; }
+
+        /* --- UI Elements --- */
+        .detail-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        
+        /* --- Home Thumbnails --- */
+        .home-thumbnail { background: white; border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.4s ease; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .home-thumbnail:hover { transform: translateY(-10px); box-shadow: 0 15px 40px rgba(25, 118, 210, 0.2); border-bottom: 5px solid var(--accent-color); }
+        .home-icon { font-size: 6rem; color: var(--primary-color); margin-bottom: 20px; }
+        .home-quote { font-style: italic; color: #666; margin-top: 15px; font-size: 1.1rem; }
+
+        /* --- List Cards --- */
+        .list-item { cursor: pointer; border-left: 4px solid transparent; transition: all 0.3s ease; padding: 15px; background: white; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);}
+        .list-item:hover { transform: translateX(5px); border-left-color: var(--accent-color); }
+        .list-item.selected { border-left-color: var(--primary-color); background: #e8eaf6; }
+        
+        /* --- Ratings & Details --- */
+        .rating-badge { font-weight: 700; font-size: 1.1rem; padding: 6px 12px; border-radius: 20px; min-width: 60px; text-align: center; display: inline-block; }
+        .rating-excellent { background: #c8e6c9; color: #1b5e20; }
+        .rating-good { background: #c5cae9; color: #1a237e; }
+        .rating-average { background: #fff9c4; color: #f57f17; }
+        .rating-poor { background: #ffcdd2; color: #b71c1c; }
+        
+        .search-box { border-radius: 25px; padding: 10px 20px; border: 2px solid #e0e0e0; width: 100%; margin-bottom: 15px; outline: none;}
+        .search-box:focus { border-color: var(--accent-color); }
+        .scroll-container { max-height: 600px; overflow-y: auto; padding-right: 5px; }
+        
+        .formula-box { background: #f8f9fa; border-left: 4px solid var(--primary-color); padding: 15px; border-radius: 0 10px 10px 0; margin-top: 20px; }
+        .math-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: var(--primary-color);}
+        
+        .accordion-button:not(.collapsed) { background-color: #e8eaf6; color: var(--primary-color); font-weight: bold;}
+
+        /* Player tab pills */
+        #playerTypeTabs .nav-link { color: var(--primary-color); border: 2px solid var(--primary-color); background: white; font-weight: 600; }
+        #playerTypeTabs .nav-link.active { background: var(--primary-color); color: white; }
+        #playerTypeTabs .nav-link:hover:not(.active) { background: #e8eaf6; }
+        #outfielderSubTabs .nav-link { color: var(--accent-color); font-weight: 500; }
+        #outfielderSubTabs .nav-link.active { color: var(--primary-color); font-weight: 700; border-bottom: 3px solid var(--primary-color); }
+
+        /* Player role thumbnail */
+        .player-thumbnail-wrap {
+            display: flex; align-items: center; gap: 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            border-radius: 14px; padding: 18px 22px; margin-bottom: 18px; color: white;
+        }
+        .player-thumbnail-wrap svg { flex-shrink: 0; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
+        .player-thumb-info { flex-grow: 1; }
+        .player-thumb-info h4 { margin: 0 0 4px; font-weight: 800; font-size: 1.3rem; }
+        .player-thumb-info .sub { opacity: 0.85; font-size: 0.9rem; }
+        .rank-chip { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; font-weight: 700; display: inline-block; margin-top: 6px; }
+        
+        .stat-box {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 12px 16px;
+            text-align: center;
+            flex: 1;
+            min-width: 80px;
+        }
+        .stat-box .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: white;
+        }
+        .stat-box .stat-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .gk-stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .gk-stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .gk-stat-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+        .gk-stat-card .label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .out-stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .out-stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .out-stat-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+        .out-stat-card .label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .gk-filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .gk-filter-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid var(--primary-color);
+            background: transparent;
+            color: var(--primary-color);
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .gk-filter-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .gk-filter-btn:hover:not(.active) {
+            background: #e8eaf6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Welcome Animation Overlay -->
+    <div id="welcome-overlay">
+        <div class="welcome-text">Welcome to Statpadder</div>
+    </div>
+
+    <!-- 2. Main Dashboard Header -->
+    <div class="dashboard-header d-none" id="main-header">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-0"><i class="bi bi-trophy-fill"></i> Statpadder</h2>
+                <small class="opacity-75" id="header-subtitle">Performance Analyzer</small>
+            </div>
+            <button class="back-btn" onclick="showHome()"><i class="bi bi-house-door-fill"></i> Home</button>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <!-- ================= HOME VIEW ================= -->
+        <div id="home-view" class="mt-5 pt-4">
+            <h1 class="text-center mb-5" style="color: var(--primary-color); font-weight: 800;">Select Analysis Mode</h1>
+            <div class="row g-4 justify-content-center">
+                <!-- Manager Thumbnail -->
+                <div class="col-md-5">
+                    <div class="home-thumbnail" onclick="showManagers()">
+                        <i class="bi bi-person-bounding-box home-icon"></i>
+                        <h2>Manager Rating</h2>
+                        <div class="home-quote">"Let's go to kit room"</div>
+                    </div>
+                </div>
+                <!-- Player Thumbnail -->
+                <div class="col-md-5">
+                    <div class="home-thumbnail" onclick="showPlayers()">
+                        <svg class="home-icon" viewBox="0 0 24 24" fill="currentColor" height="96" width="96">
+                            <path d="M14.5 4C14.5 5.1 13.6 6 12.5 6C11.4 6 10.5 5.1 10.5 4C10.5 2.9 11.4 2 12.5 2C13.6 2 14.5 2.9 14.5 4ZM12.7 7.1C12.5 7 12.3 7 12 7C10.8 7 9.8 7.5 9 8.2L8.2 6.8C9.3 5.8 10.8 5.2 12.5 5.2C13.1 5.2 13.8 5.3 14.4 5.5L12.7 7.1ZM16 11V16H14V12.5L11.5 10.5L10.3 14.2L13.8 17.8L12.5 19.2L8.5 15L10.2 9.8L8 8.8V12H6V7.8L11.2 5.5C11.6 5.3 12.1 5.4 12.4 5.7L14.4 7.7C15.4 8.7 16.8 9.3 18.5 9.5V11.5C17 11.5 15.6 11 14.5 10L13.7 10.8L16 11ZM20.5 17.5C20.5 18.9 19.4 20 18 20C16.6 20 15.5 18.9 15.5 17.5C15.5 16.1 16.6 15 18 15C19.4 15 20.5 16.1 20.5 17.5Z"/>
+                        </svg>
+                        <h2>Player Rating</h2>
+                        <div class="home-quote">"On to the pitch, mate"</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= MANAGER VIEW ================= -->
+        <div id="manager-view" class="d-none">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="detail-section">
+                        <h5><i class="bi bi-search"></i> Select Manager</h5>
+                        <input type="text" id="coachSearch" class="search-box" placeholder="Search managers...">
+                        <div class="scroll-container" id="coachList">
+                            <div class="text-center mt-4 text-muted">Loading managers...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="detail-section" id="coachDetailContent">
+                        <div class="text-center text-muted py-5">
+                            <p>Select a manager from the list to view statistics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PLAYER VIEW ================= -->
+        <div id="player-view" class="d-none">
+            <!-- Player Type Tabs -->
+            <ul class="nav nav-pills mb-3 justify-content-center" id="playerTypeTabs">
+                <li class="nav-item">
+                    <button class="nav-link active px-4" id="tab-gk" onclick="switchPlayerTab('gk')">
+                        <i class="bi bi-shield-fill"></i> Goalkeeper
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link px-4" id="tab-out" onclick="switchPlayerTab('out')">
+                        <i class="bi bi-person-running"></i> Outfielder
+                    </button>
+                </li>
+            </ul>
+
+            <!-- ---- GOALKEEPER PANEL ---- -->
+            <div id="gk-panel">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="detail-section">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0"><i class="bi bi-trophy"></i> Goalkeepers</h5>
+                                <small class="text-muted" id="gkCount"></small>
+                            </div>
+                            <!-- GK Filter Buttons -->
+                            <div class="gk-filter-buttons">
+                                <button class="gk-filter-btn active" data-filter="avg" onclick="setGKFilter('avg')">Top 10 Avg Saves</button>
+                                <button class="gk-filter-btn" data-filter="total" onclick="setGKFilter('total')">Top 10 Total Saves</button>
+                            </div>
+                            <input type="text" id="gkSearch" class="search-box" placeholder="Search goalkeepers...">
+                            <div class="scroll-container" id="gkList"><div class="text-center mt-4 text-muted">Loading...</div></div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="detail-section" id="gkDetailContent">
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-shield-fill" style="font-size:3rem;color:#ccc"></i>
+                                <p class="mt-3">Select a goalkeeper to view stats</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ---- OUTFIELDER PANEL ---- -->
+            <div id="out-panel" class="d-none">
+                <!-- Outfielder sub-tabs -->
+                <ul class="nav nav-tabs mb-3" id="outfielderSubTabs">
+                    <li class="nav-item"><button class="nav-link active" id="subtab-overall" onclick="switchOutTab('overall')">Overall Top 10</button></li>
+                    <li class="nav-item"><button class="nav-link" id="subtab-def"     onclick="switchOutTab('def')">Defenders</button></li>
+                    <li class="nav-item"><button class="nav-link" id="subtab-mid"     onclick="switchOutTab('mid')">Midfielders</button></li>
+                    <li class="nav-item"><button class="nav-link" id="subtab-fwd"     onclick="switchOutTab('fwd')">Forwards</button></li>
+                </ul>
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="detail-section">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0" id="outListTitle"><i class="bi bi-trophy"></i> Overall Top 10</h5>
+                                <small class="text-muted" id="outCount"></small>
+                            </div>
+                            <input type="text" id="outSearch" class="search-box" placeholder="Search players...">
+                            <div class="scroll-container" id="outList"><div class="text-center mt-4 text-muted">Loading...</div></div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="detail-section" id="outDetailContent">
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-person-running" style="font-size:3rem;color:#ccc"></i>
+                                <p class="mt-3">Select a player to view stats</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Data stores
+        let coachesData = [];
+        let playersData = [];
+        let playersFetched = false;
+        let gkFilter = 'avg'; // 'avg' or 'total'
+
+        // View Management (SPA Navigation)
+        function showHome() {
+            document.getElementById('home-view').classList.remove('d-none');
+            document.getElementById('manager-view').classList.add('d-none');
+            document.getElementById('player-view').classList.add('d-none');
+            document.getElementById('main-header').classList.add('d-none');
+        }
+
+        function showManagers() {
+            document.getElementById('home-view').classList.add('d-none');
+            document.getElementById('manager-view').classList.remove('d-none');
+            document.getElementById('player-view').classList.add('d-none');
+            document.getElementById('main-header').classList.remove('d-none');
+            document.getElementById('header-subtitle').innerText = "Manager Rating Board";
+            if (coachesData.length === 0) fetchCoachRatings();
+        }
+
+        function showPlayers() {
+            document.getElementById('home-view').classList.add('d-none');
+            document.getElementById('manager-view').classList.add('d-none');
+            document.getElementById('player-view').classList.remove('d-none');
+            document.getElementById('main-header').classList.remove('d-none');
+            document.getElementById('header-subtitle').innerText = "Player Rating Board";
+            if (!playersFetched) fetchPlayerRatings();
+        }
+
+        // Hide overlay after 3 seconds
+        setTimeout(() => {
+            document.getElementById('welcome-overlay').style.display = 'none';
+        }, 3000);
+
+        // UI Helper
+        function getRatingClass(rating) {
+            if (rating >= 7) return 'rating-excellent';
+            if (rating >= 5) return 'rating-good';
+            if (rating >= 3) return 'rating-average';
+            return 'rating-poor';
+        }
+
+        // ================= COACH LOGIC =================
+        async function fetchCoachRatings() {
+            try {
+                const res = await fetch('/api/coaches');
+                coachesData = await res.json();
+                renderCoachList(coachesData);
+                if(coachesData.length > 0) selectCoach(coachesData[0]);
+            } catch(e) {
+                document.getElementById('coachList').innerHTML = "<div class='text-danger text-center mt-4'>Failed to load data.</div>";
+            }
+        }
+
+        function renderCoachList(data) {
+            document.getElementById('coachList').innerHTML = data.map(c => `
+                <div class="list-item" data-coach-id="${c.coachId}" onclick="selectCoachById(${c.coachId})">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div style="font-weight:600; color:var(--primary-color)">${c.name}</div>
+                            <small class="text-muted">${c.nationality} | M: ${c.matches}</small>
+                        </div>
+                        <div class="rating-badge ${getRatingClass(c.rating)}">${c.rating.toFixed(1)}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('coachSearch').addEventListener('input', (e) => {
+                const q = e.target.value.toLowerCase();
+                renderCoachList(coachesData.filter(c => c.name.toLowerCase().includes(q) || c.nationality.toLowerCase().includes(q)));
+            });
+        }
+
+        function selectCoachById(id) { selectCoach(coachesData.find(c => c.coachId === id)); }
+
+        function selectCoach(coach) {
+            document.querySelectorAll('#coachList .list-item').forEach(el => el.classList.remove('selected'));
+            const selectedEl = document.querySelector(`.list-item[data-coach-id="${coach.coachId}"]`);
+            if (selectedEl) selectedEl.classList.add('selected');
+
+            document.getElementById('coachDetailContent').innerHTML = `
+                <h4>${coach.name}</h4>
+                <p class="text-muted"><i class="bi bi-geo-alt"></i> ${coach.nationality}</p>
+                <div class="row mt-4 g-3">
+                    <div class="col-6"><strong>Rating:</strong> <span class="badge ${getRatingClass(coach.rating)}">${coach.rating.toFixed(2)}</span></div>
+                    <div class="col-6"><strong>Win Rate:</strong> ${coach.winRate}%</div>
+                    <div class="col-6"><strong>Matches:</strong> ${coach.matches}</div>
+                    <div class="col-6"><strong>Wins/Draws/Losses:</strong> <span class="text-success">${coach.wins}</span> / <span class="text-warning">${coach.draws}</span> / <span class="text-danger">${coach.losses}</span></div>
+                    <div class="col-6"><strong>Points:</strong> ${coach.points}/${coach.maxPoints}</div>
+                    <div class="col-6"><strong>Comebacks:</strong> ${coach.comebacks}</div>
+                </div>
+            `;
+        }
+
+        // ================= PLAYER LOGIC =================
+        let currentPlayerTab = 'gk';
+        let currentOutTab = 'overall';
+        let gkSearchQuery = '';
+        let outSearchQuery = '';
+
+        // Role-specific SVG thumbnails
+        function getRoleSVG(role) {
+            if (role === 'Goalkeeper') return `
+                <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="8" y="20" width="5" height="55" rx="2" fill="rgba(255,255,255,0.5)"/>
+                  <rect x="8" y="20" width="50" height="5" rx="2" fill="rgba(255,255,255,0.5)"/>
+                  <rect x="53" y="20" width="5" height="55" rx="2" fill="rgba(255,255,255,0.5)"/>
+                  <circle cx="68" cy="22" r="9" fill="white" opacity="0.9"/>
+                  <rect x="58" y="31" width="20" height="26" rx="6" fill="white" opacity="0.9"/>
+                  <rect x="30" y="34" width="28" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(-20 44 37)"/>
+                  <rect x="78" y="28" width="18" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(15 87 31)"/>
+                  <rect x="60" y="55" width="8" height="22" rx="4" fill="white" opacity="0.9" transform="rotate(-10 64 66)"/>
+                  <rect x="68" y="55" width="8" height="22" rx="4" fill="white" opacity="0.9" transform="rotate(15 72 66)"/>
+                  <circle cx="22" cy="46" r="11" fill="white" opacity="0.95"/>
+                  <path d="M16 40 L22 35 L28 40 L26 48 L18 48 Z" fill="rgba(26,35,126,0.4)"/>
+                  <path d="M22 35 L24 29 M28 40 L34 38 M26 48 L30 53 M18 48 L14 53 M16 40 L10 38" stroke="rgba(26,35,126,0.3)" stroke-width="1"/>
+                </svg>`;
+
+            if (role === 'Defender') return `
+                <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="38" cy="18" r="9" fill="white" opacity="0.9"/>
+                  <rect x="28" y="27" width="20" height="24" rx="5" fill="white" opacity="0.9"/>
+                  <rect x="10" y="48" width="38" height="8" rx="4" fill="white" opacity="0.9" transform="rotate(-5 29 52)"/>
+                  <rect x="38" y="50" width="8" height="24" rx="4" fill="white" opacity="0.9" transform="rotate(10 42 62)"/>
+                  <rect x="14" y="30" width="16" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(25 22 33)"/>
+                  <rect x="46" y="28" width="16" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(-30 54 31)"/>
+                  <circle cx="72" cy="62" r="13" fill="white" opacity="0.95"/>
+                  <path d="M65 55 L72 50 L79 55 L77 65 L67 65 Z" fill="rgba(26,35,126,0.35)"/>
+                  <path d="M72 50 L74 44 M79 55 L85 53 M77 65 L81 70 M67 65 L63 70 M65 55 L59 53" stroke="rgba(26,35,126,0.25)" stroke-width="1.2"/>
+                  <line x1="8" y1="58" x2="2" y2="58" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+                  <line x1="8" y1="52" x2="4" y2="49" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                  <line x1="8" y1="64" x2="4" y2="67" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                </svg>`;
+
+            if (role === 'Midfielder') return `
+                <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="35" cy="18" r="9" fill="white" opacity="0.9"/>
+                  <rect x="25" y="27" width="20" height="24" rx="5" fill="white" opacity="0.9"/>
+                  <rect x="43" y="26" width="26" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(-15 56 29)"/>
+                  <rect x="8" y="30" width="18" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(20 17 33)"/>
+                  <rect x="27" y="50" width="8" height="24" rx="4" fill="white" opacity="0.9" transform="rotate(-12 31 62)"/>
+                  <rect x="35" y="50" width="8" height="24" rx="4" fill="white" opacity="0.9" transform="rotate(18 39 62)"/>
+                  <circle cx="78" cy="38" r="11" fill="white" opacity="0.95"/>
+                  <path d="M72 32 L78 27 L84 32 L82 40 L74 40 Z" fill="rgba(26,35,126,0.35)"/>
+                  <path d="M78 27 L80 21 M84 32 L90 30 M82 40 L86 45 M74 40 L70 45 M72 32 L66 30" stroke="rgba(26,35,126,0.25)" stroke-width="1.2"/>
+                  <path d="M56 28 Q65 18 72 30" stroke="white" stroke-width="2" stroke-dasharray="3 3" fill="none" opacity="0.7"/>
+                </svg>`;
+
+            if (role === 'Forward') return `
+                <svg width="90" height="90" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="32" cy="16" r="9" fill="white" opacity="0.9"/>
+                  <rect x="22" y="25" width="20" height="24" rx="5" fill="white" opacity="0.9"/>
+                  <rect x="30" y="48" width="8" height="26" rx="4" fill="white" opacity="0.9" transform="rotate(-30 34 61)"/>
+                  <rect x="22" y="48" width="8" height="20" rx="4" fill="white" opacity="0.9" transform="rotate(10 26 58)"/>
+                  <rect x="4" y="28" width="20" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(-20 14 31)"/>
+                  <rect x="40" y="24" width="20" height="7" rx="3.5" fill="white" opacity="0.9" transform="rotate(30 50 27)"/>
+                  <circle cx="78" cy="30" r="12" fill="white" opacity="0.95"/>
+                  <path d="M71 23 L78 18 L85 23 L83 32 L73 32 Z" fill="rgba(26,35,126,0.35)"/>
+                  <path d="M78 18 L80 12 M85 23 L91 21 M83 32 L87 37 M73 32 L69 37 M71 23 L65 21" stroke="rgba(26,35,126,0.25)" stroke-width="1.2"/>
+                  <line x1="60" y1="28" x2="52" y2="25" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+                  <line x1="62" y1="34" x2="54" y2="34" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                  <line x1="60" y1="40" x2="53" y2="43" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+                </svg>`;
+            return '';
+        }
+
+        async function fetchPlayerRatings() {
+            try {
+                const res = await fetch('/api/players');
+                playersData = await res.json();
+                playersFetched = true;
+                renderGKList();
+                renderOutList();
+                document.getElementById('gkSearch').addEventListener('input', e => {
+                    gkSearchQuery = e.target.value.toLowerCase();
+                    renderGKList(false);
+                });
+                document.getElementById('outSearch').addEventListener('input', e => {
+                    outSearchQuery = e.target.value.toLowerCase();
+                    renderOutList(false);
+                });
+            } catch (err) {
+                document.getElementById('gkList').innerHTML = "<div class='text-danger text-center mt-4'>Failed to load data.</div>";
+                document.getElementById('outList').innerHTML = "<div class='text-danger text-center mt-4'>Failed to load data.</div>";
+            }
+        }
+
+        function switchPlayerTab(tab) {
+            currentPlayerTab = tab;
+            document.getElementById('gk-panel').classList.toggle('d-none', tab !== 'gk');
+            document.getElementById('out-panel').classList.toggle('d-none', tab !== 'out');
+            document.getElementById('tab-gk').classList.toggle('active', tab === 'gk');
+            document.getElementById('tab-out').classList.toggle('active', tab === 'out');
+        }
+
+        function switchOutTab(sub) {
+            currentOutTab = sub;
+            outSearchQuery = '';
+            document.getElementById('outSearch').value = '';
+            ['overall','def','mid','fwd'].forEach(t =>
+                document.getElementById('subtab-' + t).classList.toggle('active', t === sub));
+            const titles = { overall: 'Overall Top 10', def: 'Defenders', mid: 'Midfielders', fwd: 'Forwards' };
+            document.getElementById('outListTitle').innerHTML = `<i class="bi bi-trophy"></i> ${titles[sub]}`;
+            renderOutList(true);
+        }
+
+        function setGKFilter(filter) {
+            gkFilter = filter;
+            document.querySelectorAll('.gk-filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            gkSearchQuery = '';
+            document.getElementById('gkSearch').value = '';
+            renderGKList(true);
+        }
+
+        // ---- GOALKEEPER LIST ----
+        function renderGKList(autoSelect = true) {
+            let gks = playersData.filter(p => p.role === 'Goalkeeper');
+            
+            // Sort based on filter
+            if (gkFilter === 'avg') {
+                gks.sort((a, b) => parseFloat(b.displayStats.avgSavesPerMatch) - parseFloat(a.displayStats.avgSavesPerMatch));
+            } else {
+                gks.sort((a, b) => parseInt(b.displayStats.shotsSaved) - parseInt(a.displayStats.shotsSaved));
+            }
+            
+            if (gkSearchQuery) {
+                gks = gks.filter(p => p.name.toLowerCase().includes(gkSearchQuery));
+            } else {
+                gks = gks.slice(0, 10);
+            }
+            
+            const countEl = document.getElementById('gkCount');
+            if (countEl) countEl.textContent = gkSearchQuery ? `${gks.length} found` : 'Top 10';
+
+            document.getElementById('gkList').innerHTML = gks.length === 0
+                ? "<div class='text-muted text-center mt-4'>No goalkeepers found.</div>"
+                : gks.map((p, i) => {
+                    const rankDisplay = gkSearchQuery ? '—' : (i + 1);
+                    const statDisplay = gkFilter === 'avg' 
+                        ? `${p.displayStats.avgSavesPerMatch}/match` 
+                        : `${p.displayStats.shotsSaved} saves`;
+                    return `
+                    <div class="list-item" data-pid="${p.playerId}" onclick="selectGK(${p.playerId})">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-weight:700;color:#aaa;min-width:22px">${rankDisplay}</span>
+                            <div class="flex-grow-1">
+                                <div style="font-weight:600;color:var(--primary-color)">${p.name}</div>
+                                <small class="text-muted">${statDisplay}</small>
+                            </div>
+                            <div class="rating-badge ${getRatingClass(p.rating)}">${p.rating.toFixed(2)}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            if (autoSelect && gks.length > 0) selectGK(gks[0].playerId);
+        }
+
+        function selectGK(pid) {
+            const p = playersData.find(x => x.playerId === pid);
+            if (!p) return;
+            document.querySelectorAll('#gkList .list-item').forEach(el => el.classList.remove('selected'));
+            const el = document.querySelector(`#gkList .list-item[data-pid="${pid}"]`);
+            if (el) { el.classList.add('selected'); el.scrollIntoView({ block: 'nearest' }); }
+
+            const d = p.displayStats;
+            document.getElementById('gkDetailContent').innerHTML = `
+                <div class="player-thumbnail-wrap">
+                    ${getRoleSVG('Goalkeeper')}
+                    <div class="player-thumb-info">
+                        <h4>${p.name}</h4>
+                        <div class="sub">Goalkeeper &nbsp;·&nbsp; Matches: ${p.matches}</div>
+                    </div>
+                    <span class="rating-badge ${getRatingClass(p.rating)} fs-5 px-3 py-2">${p.rating.toFixed(2)}</span>
+                </div>
+
+                <div class="gk-stat-grid">
+                    <div class="gk-stat-card">
+                        <div class="value">${p.matches}</div>
+                        <div class="label">Matches Played</div>
+                    </div>
+                    <div class="gk-stat-card">
+                        <div class="value">${d.shotsSaved}</div>
+                        <div class="label">Total Saves</div>
+                    </div>
+                    <div class="gk-stat-card">
+                        <div class="value">${d.avgSavesPerMatch}</div>
+                        <div class="label">Avg Saves / Match</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---- OUTFIELDER LIST ----
+        function renderOutList(autoSelect = true) {
+            const roleMap = { overall: null, def: 'Defender', mid: 'Midfielder', fwd: 'Forward' };
+            const roleFilter = roleMap[currentOutTab];
+            let pool = playersData.filter(p => p.role !== 'Goalkeeper');
+            if (roleFilter) pool = pool.filter(p => p.role === roleFilter);
+
+            let display;
+            if (outSearchQuery) {
+                display = pool.filter(p => p.name.toLowerCase().includes(outSearchQuery) || p.role.toLowerCase().includes(outSearchQuery));
+            } else {
+                display = pool.slice(0, 10);
+            }
+
+            const countEl = document.getElementById('outCount');
+            if (countEl) countEl.textContent = outSearchQuery ? `${display.length} found` : 'Top 10';
+
+            const roleBadgeColor = { Defender: 'bg-primary', Midfielder: 'bg-success', Forward: 'bg-danger' };
+            document.getElementById('outList').innerHTML = display.length === 0
+                ? "<div class='text-muted text-center mt-4'>No players found.</div>"
+                : display.map((p, i) => `
+                    <div class="list-item" data-pid="${p.playerId}" onclick="selectOut(${p.playerId})">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-weight:700;color:#aaa;min-width:22px">${outSearchQuery ? '—' : i+1}</span>
+                            <div class="flex-grow-1">
+                                <div style="font-weight:600;color:var(--primary-color)">${p.name}</div>
+                                <span class="badge ${roleBadgeColor[p.role] || 'bg-secondary'} me-1">${p.role}</span>
+                                <small class="text-muted">M: ${p.matches}</small>
+                            </div>
+                            <div class="rating-badge ${getRatingClass(p.rating)}">${p.rating.toFixed(2)}</div>
+                        </div>
+                    </div>`).join('');
+            if (autoSelect && display.length > 0) selectOut(display[0].playerId);
+        }
+
+        function selectOut(pid) {
+            const p = playersData.find(x => x.playerId === pid);
+            if (!p) return;
+            document.querySelectorAll('#outList .list-item').forEach(el => el.classList.remove('selected'));
+            const el = document.querySelector(`#outList .list-item[data-pid="${pid}"]`);
+            if (el) { el.classList.add('selected'); el.scrollIntoView({ block: 'nearest' }); }
+
+            const d = p.displayStats;
+            const roleBadgeColor = { Defender: 'bg-primary', Midfielder: 'bg-success', Forward: 'bg-danger' };
+
+            document.getElementById('outDetailContent').innerHTML = `
+                <div class="player-thumbnail-wrap">
+                    ${getRoleSVG(p.role)}
+                    <div class="player-thumb-info">
+                        <h4>${p.name}</h4>
+                        <div class="sub"><span class="badge ${roleBadgeColor[p.role] || 'bg-secondary'} me-1">${p.role}</span> &nbsp;·&nbsp; Matches: ${p.matches}</div>
+                    </div>
+                    <span class="rating-badge ${getRatingClass(p.rating)} fs-5 px-3 py-2">${p.rating.toFixed(2)}</span>
+                </div>
+
+                <div class="out-stat-grid">
+                    <div class="out-stat-card">
+                        <div class="value">${d.goals}</div>
+                        <div class="label">Goals</div>
+                    </div>
+                    <div class="out-stat-card">
+                        <div class="value">${d.assists}</div>
+                        <div class="label">Assists</div>
+                    </div>
+                    <div class="out-stat-card">
+                        <div class="value">${d.shotsOnTarget}</div>
+                        <div class="label">Shots on Target</div>
+                    </div>
+                    <div class="out-stat-card">
+                        <div class="value">${d.keyPasses}</div>
+                        <div class="label">Key Passes</div>
+                    </div>
+                    <div class="out-stat-card">
+                        <div class="value">${d.avgPassesPerMatch}</div>
+                        <div class="label">Avg Passes / Match</div>
+                    </div>
+                    <div class="out-stat-card">
+                        <div class="value">${p.matches}</div>
+                        <div class="label">Matches Played</div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
