@@ -52,3 +52,23 @@ Tradeoffs
 The ratings generated are for all the events tracked over the tournament, not match-based.
 The System rates according to the category of player, not overall as a football player.
 The top 10 displayed are by default to reduce front-end rendering if there is any change in data.
+Limitations
+Relies on pre-loaded JSON files; not connected to live data feeds
+No physical metrics (speed, strength, stamina) 
+Equal weight given to performances regardless of opponent strength
+Performance quantified through a limited set of indicators.
+Doesn't account for performance quality within wins/losses
+Weightings don't adapt to match context or opponent quality. 
+Can't view match-by-match performance breakdown
+
+
+Tools Used: Gemini, Deepseek, to build the solutions
+
+Steps to run the HTML:
+
+Save all files in a folder named Project.
+Install Flask if not installed: pip install flask.
+Change the directory where the file is saved. Suppose on the desktop
+CD Desktop/Project
+Run python app.py
+Open Browser -paste  http://127.0.0.1:5000 or http://localhost:5000
